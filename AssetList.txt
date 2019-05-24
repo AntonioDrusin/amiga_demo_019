@@ -1,0 +1,4 @@
+
+//IMAGE EXAMPLES
+
+Assets\imageGround.png ConvertedAssets\imageGround -format=5 -interleaved -trim -RawPalette

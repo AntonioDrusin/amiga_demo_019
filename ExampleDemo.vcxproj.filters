@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="DemoStartup.S" />
+    <None Include="ExampleDemo.S" />
+    <None Include="BuildAndRunDemo.bat" />
+    <None Include="..\DH0\TFMX\source\rout.tfmx7v_sid_fixed.s">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\P61Con\P6111-Play.i">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\FutureComposer\source\FC1.4replay.S">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\OctaMED_Soundstudio\Programmers\proplayer.a">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\OctaMED_Soundstudio\Programmers\reloc.a">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\OctaMED_Soundstudio\Programmers\pro8player.a">
+      <Filter>players</Filter>
+    </None>
+    <None Include="..\DH0\AHX\Examples\AHX-Offsets.I">
+      <Filter>players</Filter>
+    </None>
+    <None Include="BuildAndRunDemoAros.bat" />
+    <None Include="custom.i" />
+    <None Include="scene1.s" />
+    <None Include="scene2.s" />
+    <None Include="dmacros.i" />
+    <None Include="recipes.i" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="players">
+      <UniqueIdentifier>{eadc6b1f-2c97-4f88-8e8a-2b59956098ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{af4bc8d5-f99c-40bc-93e2-6b855c3a1c50}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="AssetList.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ExampleCCode.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ImageGround.png" />
+    <Image Include="Assets\ImageGround.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
+</Project>
