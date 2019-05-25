@@ -212,8 +212,6 @@ CopperBplPtr2:
 CopperColors2:
 	ds.l	32
 CopperPlanePointers:
-
-
 	dc.l	$01fc0000
 	dc.l	$ffe1fffe
 	dc.l	$fffffffe

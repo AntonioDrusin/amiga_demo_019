@@ -61,8 +61,9 @@ Scene2PreCalc:
 Scene2Init:
 	lea CopperScene2, a1
 	move.l	a1, $dff080
-	lea		SC2_FadeIn, a1
-	move.l  a1, SC2_Phase
+
+	move.l	#SC2_FadeIn, SC2_Phase	
+	move.w	#SC2FadeInFrames, SC2_ShowFrames
 	rts
 
 ; Frames to skip before changing colors
@@ -70,140 +71,124 @@ SC2_Skip: equ 4
 
 SC2_SkipCounter:
 	dc.w	$0
-
 SC2_ColorPhase:
 	dc.w	$0
-	
 SC2_ShowFrames:
-	dc.w	100
-
+	ds.w	1
 SC2_Phase:
     dc.l    0
+
+SC2FadeInFrames:	equ 15
+SC2FadeOutFrames:	equ 15
+SC2HoldFrames:		equ 100
 
 Scene2:
 	movea.l SC2_Phase, a2
 	jmp     (a2)
 
-; #Run vblank every SC2_Skip frames
-	
-
 SC2_Stay:
 	move.w	SC2_ShowFrames, d0
 	tst.w   d0
-	beq		.continue
+	beq		.nextPart
 	subq.w	#1, d0
 	move.w  d0, SC2_ShowFrames
 	rts
-.continue:	
-	lea		SC2_FadeOut, a1
-	move.l  a1, SC2_Phase
+.nextPart:	
+	move.l	#SC2_FadeOut, SC2_Phase	
+	move.w	#SC2FadeOutFrames, SC2_ShowFrames
 	rts
 
 SC2_FadeIn:
-	move.w	SC2_ColorPhase, d0		; d0 : colorphase
-	cmp.w	#$f, d0
-	beq		.stay
-	lea		ColorChangeUp, a3
-	bra		SC2_Fade
-.stay:
-	move.w	#0, SC2_ColorPhase
-	lea		SC2_Stay, a1
-	move.l  a1, SC2_Phase
+	move.w	SC2_ShowFrames, d0
+	tst.w   d0
+	beq		.nextPart
+	subq.w	#1, d0
+	move.w  d0, SC2_ShowFrames
+	moveq	#1, d0
+	bra.s   SC2_Fade
+.nextPart:
+	move.w  #0, SC2_ColorPhase
+	move.l	#SC2_Stay, SC2_Phase	
+	move.w	#SC2HoldFrames, SC2_ShowFrames
 	rts
 
 SC2_FadeOut:
-	move.w	SC2_ColorPhase, d0		; d0 : colorphase
-	cmp.w	#$f, d0
-	beq		.down
-	lea		ColorChangeDown, a3
-	bra		SC2_Fade
-.down:
-	; no more scenes
+	move.w	SC2_ShowFrames, d0
+	tst.w   d0
+	beq		.nextPart
+	subq.w	#1, d0
+	move.w  d0, SC2_ShowFrames
+	moveq	#-1, d0
+	bra.s   SC2_Fade
+.nextPart:
+	; no more 	scenes
+	; Jmp NextScene to go to next scene
 	rts
 
-	
+
+	;d0 : upordown INPUT : 1 up, -1 down
+	;d1 : desired color component
+	;d2 : mask
+	;d3 : colorphase
 SC2_Fade:
+	; Calculate the current fade for all 15 intensities
+	lea		SC2_SmoothColor+30, a0
+	lea		SC2_CurrentColorComponent+30, a1
+	moveq	#$f, d1			; f->0
+	move.w  SC2_ColorPhase, d3 
+	WinUAEBreakpoint
+.nextComponent
+	move.w	(a0), d2
+	subq.w  #2, a0
+	btst    d3, d2
+	beq.s   .skipChange
+	move.w	(a1), d2
+	add.w	d0,d2
+	move.w	d2, (a1)
+.skipChange:
+	subq.w  #2, a1
+	dbra	d1, .nextComponent
+	
+	addq.w	#1, d3
+	move.w  d3, SC2_ColorPhase
 
-	lea		SC2_SmoothColor, a0		; a0 : smooth color pointer [x] 
-	lea		CopperColors2, a1		; a1 : copper color table   [x] 
-	addq.l  #2, a1
-	lea		PaletteOne, a2			; a2 : RAW final palette    [ ]
-	moveq   #32-1, d1
-.nextColor							
-							; a1 : colors in copperlist shifted by 2							
-							; d0  :color phase
-							; d1 : palette index							
-	move.w	(a2)+, d2		; d2 : final color					 => d3 component
-	move.w	(a1), d6		; d6 : current color				 => d4 component
-	clr.w	d7				; d7 : output color
-
-	; LOWER 4 bits
-	move.w	d2, d3			; d3 : 4 bit desired color component
-	move.w	d6, d4			; d4  : 4 bit current color component		
-	jsr		(a3)
-	move.w  d4, d7
-
-	; MIDDLE 4 bits
-	lsr.w   #4, d2
-	move.w	d2, d3
-	lsr.w	#4, d6
-	move.w	d6, d4
-	jsr		(a3)
-	lsl.w   #4, d4
-	or.w  d4, d7
-
-	; HIGHEST 4 bites
-	lsr.w   #4, d2
-	move.w	d2, d3
-	lsr.w	#4, d6
-	move.w	d6, d4
-	jsr		(a3)
-	lsl.w   #8, d4
-	or.w  d4, d7
-
-	move.w	d7, (a1)
-	addq.w	#4, a1
-
-	dbra.w	d1, .nextColor
-
-	addq.w	#1, d0
-	move.w	d0, SC2_ColorPhase		; d0 : colorphase		
-.skipDirectionSwap
-
-.end
+	; d0 counter
+	; a0 copper palette
+	; a1 final RAW palette
+	; d1 final color
+	; d2 scratch
+	; d3 current color
+	lea		CopperColors2, a0
+	addq.w  #2, a0			; Skip the register identification word
+	lea     PaletteOne, a1
+	lea		SC2_CurrentColorComponent, a2
+	moveq   #32-1, d0
+	
+.nextColor
+	move.w	(a1)+, d1
+	move.w	d1, d2
+	and.w   #$0f, d2
+	lsl		#1, d2
+	move.w  (a2, d2), d3 ; 00X done
+	lsr.w	#4, d1
+	move.w  d1, d2
+	and.w 	#$0f, d2
+	lsl		#1, d2
+	move.w  (a2, d2), d2
+	lsl.w   #4, d2
+	or.w    d2, d3       ; 0Xx done
+	lsr.w	#4, d1
+	move.w  d1, d2
+	lsl		#1, d2
+	move.w	(a2, d2), d2
+	lsl.w   #8, d2
+	or.w    d2, d3       ; Xxx done
+	move.w  d3, (a0)
+	addq.w  #4, a0
+	dbra    d0, .nextColor
 	rts
 
-; TOUCHES d5
-; d0 : colorphase
-; d3 : 4 bit FINAL color component		-> DESTROYED
-; d4 : 4 bit current color component	-> OUT
-; d5 :									-> DESTROYED
-; a0 : smooth color pointer
-ColorChangeUp:
-	and.w	#$f, d3
-	lsl.w   #1, d3
-	and.w   #$f, d4
-							; d0 : colorphase
-							; d3 : 4 bit color component
-	move.w	(a0,d3), d5		; d5 : skip bitmask
-	btst    d0, d5
-	beq .end
-	addq.w	#1, d4
-.end
-	rts
-
-ColorChangeDown:
-	and.w	#$f, d3
-	lsl.w   #1, d3
-	and.w   #$f, d4
-							; d0 : colorphase
-							; d3 : 4 bit color component
-	move.w	(a0,d3), d5		; d5 : skip bitmask
-	btst    d0, d5
-	beq .end
-	subq.w	#1, d4
-.end
-	rts
+NextScene:
 
 
 SC2_SmoothColor
@@ -222,4 +207,6 @@ SC2_SmoothColor
 	dc.w    $bbbb  ; 12
 	dc.w    $bbfb  ; 13
 	dc.w    $fbfb  ; 14
-	dc.w    $ffbf  ; 15	
+	dc.w    $ffbf  ; 15
+SC2_CurrentColorComponent:
+	ds.w    15
