@@ -19,8 +19,4 @@ func main() {
 		fmt.Print("\tdc.w\t$" )
 		fmt.Println(strconv.FormatInt(mask, 16))
 	}
-
-
-
-
 }

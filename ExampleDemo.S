@@ -211,7 +211,7 @@ CopperBplPtr2:
 					;dc.w	$2b01, $ff00
 
 CopperColors2:
-	ds.l	33 * 16	; 16 color sets with 32 colors each + wait instruction
+	ds.l	33 * 31	; 31 color sets with 32 colors each + wait instruction
 CopperPlanePointers:
 	dc.l	$01fc0000
 	dc.l	$ffe1fffe
@@ -244,4 +244,4 @@ Bitplane:
 NullSprite:
 	dc.l	0,0,0,0
 	
-;Shallow Hash=14821718825120332491802322484210225518716356
+;Shallow Hash=1497119814518267141125151180225118245210561

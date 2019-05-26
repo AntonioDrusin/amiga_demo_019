@@ -45,11 +45,9 @@ Scene2PreCalc:
 	; d7 color register
 	move.w	#16-1, d5
 	lea		CopperColors2, a4  ; the block of stuff
-	move.w	#$2a, d4			
+	move.w	#$6a, d4			
 
 .nextBlock:
-	WinUAEBreakpoint
-
 	move.w	#color, d7
 			; Setup Copper wait ; dc.w	$2b01, $ff00
 	move.w	d4, d6
@@ -58,7 +56,7 @@ Scene2PreCalc:
 	move.w  d6, (a4)+
 	move.w  #$ff00, d6 ; waitmask
 	move.w  d6, (a4)+
-	add.w	#6, d4
+	add.w	#bandSize, d4
 
 	;d0 : upordown INPUT : 1 up, -1 down
 	;d1 : desired color component
@@ -123,10 +121,36 @@ Scene2PreCalc:
 
 	dbra    d5, .nextBlock
 
-; Now do the reverse in the next 15 blocks 
-	; the vertical location register is still in 
+	; Now do the reverse in the next 15 blocks 
+	; the vertical location register is still in  d4
+	add.w   #14*bandSize, d4
+	; a4 Copperlist Location of blocks to copy 
+	; d0 block counter
+	lea 	CopperColors2, a4	
+	; 31 color sets, 4 per instruction, 32 colors, 1 wait instruction	
+	move.l 	#CopperColors2+(31-1)*4*(32+1), a2 ; Destination copper-list location
+	move.w   #15-1, d0 ; 
+.nextCopy:
+	move.l  a2, a3
+	addq.w  #4, a4   ; Skip wait instruction from source
+
+	; Sets wait instruction to the next scanline in dest
+	move.w	d4, d6
+	lsl.w	#8, d6
+	or.w	#1, d6	   ; wait
+	move.w  d6, (a3)+
+	move.w  #$ff00, d6 ; waitmask
+	move.w  d6, (a3)+
+	sub.w	#bandSize, d4
+
+	move.w  #32-1, d1  ; Color counter.
+.nextCopyColor:	
+	move.l  (a4)+, (a3)+
+	dbra	d1, .nextCopyColor
 
 
+	sub.l   #4*(32+1), a2 ; Move back one on destination pointer
+	dbra	d0, .nextCopy
 
 	lea		CopperColors2, a0
 	rts
@@ -148,9 +172,11 @@ SC2_ShowFrames:
 SC2_Phase:
     dc.l    0
 
+bandSize:			equ 1
 SC2FadeInFrames:	equ 15
 SC2FadeOutFrames:	equ 15
 SC2HoldFrames:		equ 100
+
 
 Scene2:
 	rts
