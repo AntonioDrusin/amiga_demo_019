@@ -1,6 +1,6 @@
 @rem Command Line Options are -dontrun -dontbuild -debug
 
-@set MusicPlayer=2
+@set MusicPlayer=0
 
 @set UseMiniPacker=0
 @set NoPack=1

@@ -152,13 +152,13 @@ ScenePtr:
 ; per row bpl adressing
 ; Wave on a picture
 
-	; Init picture copperlist in precalc
+					; Init picture copperlist in precalc
 
-	;lea.l	VBlank(pc),a0
-	;move.l	(a0),d0
-	;cmp.w	#FRAMES_ON_SCENE_1,d0
-	;bne		.exit
-	;move.l	#Scene2,ScenePtr
+					;lea.l	VBlank(pc),a0
+					;move.l	(a0),d0
+					;cmp.w	#FRAMES_ON_SCENE_1,d0
+					;bne		.exit
+					;move.l	#Scene2,ScenePtr
 
 	if MUSICPLAYER=2
 		section	datachip,data_c
@@ -207,10 +207,11 @@ CopperBplPtr2:
 	dc.l	$00e80000,$00ea0000
 	dc.l	$00ec0000,$00ee0000
 	dc.l	$00f00000,$00f20000
-	; Wait till start v $2c-1
-	dc.w	$2b01, $ff00
+					; Wait till start v $2c-1
+					;dc.w	$2b01, $ff00
+
 CopperColors2:
-	ds.l	32
+	ds.l	33 * 16	; 16 color sets with 32 colors each + wait instruction
 CopperPlanePointers:
 	dc.l	$01fc0000
 	dc.l	$ffe1fffe
@@ -243,4 +244,4 @@ Bitplane:
 NullSprite:
 	dc.l	0,0,0,0
 	
-;Shallow Hash=51102511252691902351381391769159243132209
+;Shallow Hash=14821718825120332491802322484210225518716356

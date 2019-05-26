@@ -2,12 +2,12 @@
 ** S C E N E 2 **
 *****************
 
-; Copper horizontal light ray
+; copper plasma
 
+; sprites 
+; lines
 
-; First run should be all black not low luma 2
-; Second run is all FFFF
-
+; image wave appear
 Scene2PreCalc:
 	; Example: Set bitplane pointer
 	;move.l	ChipPtr(pc),a1
@@ -39,43 +39,111 @@ Scene2PreCalc:
 	add.w	#8,a2
 	dbra	d7,.setupSprites
 
-	; d4 wait position
-	; d5 loop control
-	; d6 scratch
-	; d7 color register
-	move.w	#16-1, d5
-	lea		CopperColors2, a4  ; the block of stuff
-	move.w	#$2a, d4			
 
-.nextBlock:
-	WinUAEBreakpoint
+; Creates a full black colorpalette in copperlist
+; d0 colorregister + color
+; d7 color counter
+; a0 copperlist pointer
+; 	
+	clr.w	d1
+	move.l	#color, d0			
+	move    #32-1, d7
+	lea		CopperColors2, a0
+.loadPal
+	swap	d0	; reg:color
+	move.l	d0, (a0)+
+	swap	d0
+	addq.w	#2, d0
+	dbra	d7, .loadPal
 
-	move.w	#color, d7
-			; Setup Copper wait ; dc.w	$2b01, $ff00
-	move.w	d4, d6
-	lsl.w	#8, d6
-	or.w	#1, d6	   ; wait
-	move.w  d6, (a4)+
-	move.w  #$ff00, d6 ; waitmask
-	move.w  d6, (a4)+
-	add.w	#6, d4
+	rts
+
+Scene2Init:
+	lea CopperScene2, a1
+	move.l	a1, $dff080
+
+	move.l	#SC2_FadeIn, SC2_Phase	
+	move.w	#SC2FadeInFrames, SC2_ShowFrames
+	rts
+
+; Frames to skip before changing colors
+SC2_Skip: equ 4
+
+SC2_SkipCounter:
+	dc.w	$0
+SC2_ColorPhase:
+	dc.w	$0
+SC2_ShowFrames:
+	ds.w	1
+SC2_Phase:
+    dc.l    0
+
+SC2FadeInFrames:	equ 16
+SC2FadeOutFrames:	equ 16
+SC2HoldFrames:		equ 100
+
+Scene2:
+	movea.l SC2_Phase, a2
+	jmp     (a2)
+
+SC2_Stay:
+	move.w	SC2_ShowFrames, d0
+	tst.w   d0
+	beq		.nextPart
+	subq.w	#1, d0
+	move.w  d0, SC2_ShowFrames
+	rts
+.nextPart:	
+	move.l	#SC2_FadeOut, SC2_Phase	
+	move.w	#SC2FadeOutFrames, SC2_ShowFrames
+	rts
+
+SC2_FadeIn:
+	move.w	SC2_ShowFrames, d0
+	tst.w   d0
+	beq		.nextPart
+	subq.w	#1, d0
+	move.w  d0, SC2_ShowFrames
+	moveq	#1, d0
+	bra.s   SC2_Fade
+.nextPart:
+	move.w  #0, SC2_ColorPhase
+	move.l	#SC2_Stay, SC2_Phase	
+	move.w	#SC2HoldFrames, SC2_ShowFrames
+	rts
+
+SC2_FadeOut:
+	move.w	SC2_ShowFrames, d0
+	tst.w   d0
+	beq		.nextPart
+	subq.w	#1, d0
+	move.w  d0, SC2_ShowFrames
+	moveq	#-1, d0
+	bra.s   SC2_Fade
+.nextPart:
+	; no more 	scenes
+	; Jmp NextScene to go to next scene
+	rts
+
 
 	;d0 : upordown INPUT : 1 up, -1 down
 	;d1 : desired color component
 	;d2 : mask
 	;d3 : colorphase
+SC2_Fade:
 	; Calculate the current fade for all 15 intensities
 	lea		SC2_SmoothColor+30, a0
 	lea		SC2_CurrentColorComponent+30, a1
 	moveq	#$f, d1			; f->0
 	move.w  SC2_ColorPhase, d3 
+	WinUAEBreakpoint
 .nextComponent
 	move.w	(a0), d2
 	subq.w  #2, a0
 	btst    d3, d2
 	beq.s   .skipChange
 	move.w	(a1), d2
-	add.w	#1,d2
+	add.w	d0,d2
 	move.w	d2, (a1)
 .skipChange:
 	subq.w  #2, a1
@@ -85,21 +153,18 @@ Scene2PreCalc:
 	move.w  d3, SC2_ColorPhase
 
 	; d0 counter
-	; a4 copper palette
+	; a0 copper palette
 	; a1 final RAW palette
 	; d1 final color
 	; d2 scratch
 	; d3 current color
-
-
+	lea		CopperColors2, a0
+	addq.w  #2, a0			; Skip the register identification word
 	lea     PaletteOne, a1
 	lea		SC2_CurrentColorComponent, a2
 	moveq   #32-1, d0
 	
 .nextColor
-	; write the register in copper list
-	move.w	d7, (a4)+
-	addq.w  #2, d7
 	move.w	(a1)+, d1
 	move.w	d1, d2
 	and.w   #$0f, d2
@@ -118,47 +183,16 @@ Scene2PreCalc:
 	move.w	(a2, d2), d2
 	lsl.w   #8, d2
 	or.w    d2, d3       ; Xxx done
-	move.w  d3, (a4)+
+	move.w  d3, (a0)
+	addq.w  #4, a0
 	dbra    d0, .nextColor
-
-	dbra    d5, .nextBlock
-
-; Now do the reverse in the next 15 blocks 
-	; the vertical location register is still in 
-
-
-
-	lea		CopperColors2, a0
-	rts
-
-Scene2Init:
-	lea CopperScene2, a1
-	move.l	a1, $dff080
-	rts
-
-; Frames to skip before changing colors
-SC2_Skip: equ 4
-
-SC2_SkipCounter:
-	dc.w	$0
-SC2_ColorPhase:
-	dc.w	$0
-SC2_ShowFrames:
-	ds.w	1
-SC2_Phase:
-    dc.l    0
-
-SC2FadeInFrames:	equ 15
-SC2FadeOutFrames:	equ 15
-SC2HoldFrames:		equ 100
-
-Scene2:
 	rts
 
 NextScene:
 
-SC2_SmoothColor:
-	dc.w    $0000
+
+SC2_SmoothColor
+		dc.w    $0000
 	dc.w    $0100
 	dc.w    $1010
 	dc.w    $2108
@@ -174,6 +208,5 @@ SC2_SmoothColor:
 	dc.w    $efee
 	dc.w    $fefe
 	dc.w    $fffe
-
 SC2_CurrentColorComponent:
 	ds.w    15
