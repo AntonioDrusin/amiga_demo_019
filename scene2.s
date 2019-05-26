@@ -4,10 +4,6 @@
 
 ; Copper horizontal light ray
 
-
-; First run should be all black not low luma 2
-; Second run is all FFFF
-
 Scene2PreCalc:
 	; Example: Set bitplane pointer
 	;move.l	ChipPtr(pc),a1
@@ -163,14 +159,14 @@ Scene2Init:
 ; Frames to skip before changing colors
 SC2_Skip: equ 4
 
-SC2_SkipCounter:
-	dc.w	$0
 SC2_ColorPhase:
 	dc.w	$0
-SC2_ShowFrames:
-	ds.w	1
 SC2_Phase:
     dc.l    0
+SC2_Position:
+	dc.w    $9
+SC2_Direction:
+	dc.w    2	
 
 bandSize:			equ 1
 SC2FadeInFrames:	equ 15
@@ -179,7 +175,41 @@ SC2HoldFrames:		equ 100
 
 
 Scene2:
+	move.w 	SC2_Position, d4
+	move.w  SC2_Direction, d1
+	add.w  d1, d4
+	move.w  d4, SC2_Position
+
+	cmp.w   #$a0, d4
+	bgt     .flip
+	cmp.w   #9, d4
+	ble		.flip
+
+	lea 	CopperColors2, a4
+	move.w  #31-1,d0
+
+.loadCopperWait:
+	add.w	#bandSize, d4
+	move.w	d4, d6
+	lsl.w	#8, d6
+	or.w	#1, d6	   ; wait
+	move.w  d6, (a4)+
+	move.w  #$ff00, d6 ; waitmask
+	move.w  d6, (a4)+
+
+
+	adda.w  #32*4, a4	; Skip the colors
+
+	dbra	d0, .loadCopperWait
+
+.done:
 	rts
+.flip:
+	move.w  SC2_Direction, d0
+	neg.w   d0
+	move.w  d0, SC2_Direction
+	rts
+
 
 NextScene:
 
