@@ -164,11 +164,12 @@ SetupCopperColortable:
 
 
 SetupInitialGradient:
-	lea		SC2_Gradient, a0
-	move.w	#256-1, d0
+	;lea		SC2_Stars, a0
+	;move.b	#$1, (20, a0)
+	;move.w	#56-1, d0
 .loop:
-	move.b 	d0, (a0)+
-	dbra	d0, .loop
+	;move.b 	d0, (a0)+
+	;dbra	d0, .loop
 
 
 SetupCopperAddresses:
@@ -196,8 +197,6 @@ SC2_Phase:
     dc.l    0
 SC2_Position:
 	dc.w    $9
-SC2_Direction:
-	dc.w    2	
 
 bandSize:			equ 1
 SC2FadeInFrames:	equ 15
@@ -206,7 +205,10 @@ SC2HoldFrames:		equ 100
 
 
 Scene2:
-	WinUAEBreakpoint
+
+LoadPalette:
+
+
 	lea		SC2_Gradient, a0
 	lea		CopperColors2, a1		;	 This is where the waits and jumps are
 	lea		CopperColortable, a2	; 	This is the color table
@@ -226,7 +228,87 @@ Scene2:
 	add.l	#24, a1		; move to the next cop1l load
 	dbra	d0, .loop
 
+	; d1 - Next color (up)
+	; d2 - Current color
+UpdateGradient:
+	lea 	SC2_Stars + 255,a0
+	lea		SC2_Gradient + 255, a1
+	move.w	#255, d0
+	move.b  #0, d5
+	move.w	#10, d2
+.loop
+	sub.b	d2,d5
+	tst.b	d5
+	bge		.skipZero
+	move.b	#0, d5
+.skipZero:
+
+	move.b	(a0), d1	
+	tst.b	d1	
+	beq		.isZero
+	move.b	#$3f, d5
+	move.b	d1,d2
+.isZero:
+	move.b  d5, (a1)
+	sub		#1, a0
+	sub		#1, a1
+	dbra	d0, .loop
+
+	; d1 - Next color (up)
+	; d2 - Current color
+UpdateStars:
+	lea 	SC2_Stars + 255,a0
+	move.w	#255, d0
+	move.b	(a0), d2
+.loop
+	move.b	(a0,-1), d1
+
+	tst.b	d2
+	bne		.skipDrop
+	move.b	d1, d2
+	move.b	#0, d1
+
+.skipDrop:
+
+	move.b	d2, (a0)
+	move.b	d1, d2
+
+	sub		#1, a0
+	dbra	d0, .loop
+
+
+AddStarTop:
+	move.w	SC2_StarCounter, d0
+	add.w	#1,d0
+	lea		SC2_StarWaits, a0
+	move.w	SC2_StarWait, d1
+	add.w	d1,a0
+	add.w	d1,a0
+	cmp.w	(a0),d0
+	ble		.finish
+	move.w	(a0),d2
+	move.b	d2, SC2_Stars+2
+	add.w	#$1, d1
+	and.w	#$7, d1
+	move.w	d1, SC2_StarWait
+	move.w	#0, d0
+.finish:	
+	move.w	d0, SC2_StarCounter
 	rts
+
+SC2_StarCounter: 
+	dc.w 	0
+SC2_StarWait:
+	dc.w	0
+SC2_StarWaits:
+	dc.w	3
+	dc.w	12
+	dc.w	8
+	dc.w	20
+	dc.w	3
+	dc.w	16
+	dc.w	4
+	dc.w	10
 
 
 NextScene:
@@ -253,9 +335,20 @@ SC2_CopSubAddresses:
 	ds.l	16
 
 SC2_Gradient:
+	dc.b	0 		; Above the line padding
+	dc.b	0		; Above the line padding
 	ds.b	256 	; 1 byte per row. This should not be here to save executable size.
+	dc.b	0
+	dc.b	0		; pad last
 
+SC2_Stars:
+	dc.b 	0
+	dc.b 	0
+	ds.b	256
+	dc.b 	0
+	dc.b 	0
 
 
 SC2_CurrentColorComponent:
 	ds.w    15
+
