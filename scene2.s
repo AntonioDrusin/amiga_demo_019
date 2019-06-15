@@ -35,24 +35,64 @@ Scene2PreCalc:
 	add.w	#8,a2
 	dbra	d7,.setupSprites
 
-	; d4 wait position
+SetupCopperWaits:
+	lea		CopperColors2, a0		; a0 copperlist pointer
+	lea		CopperColortable, a1	; a1 colortable pointer.
+	move.w	#$2b, d2				; d2 Vertical BEAN POSITION
+	move.w	#256 - 1, d0			; d0 counter (256 iterations)
+									; d1 SCRATCH
+.next:
+	move.w	#cop1lc+2, (a0)+
+	move.l	a1, d1
+	move.w	d1, (a0)+			; MOVE A1, COP1LCL
+	swap	d1
+	move.w	#cop1lc, (a0)+		
+	move.w	d1, (a0)+			; MOVE A1, COP1LCH
+	move.l	a0, d1
+	add.w	#16, d1				; Skips 4 instructions (4 longs)
+	move.w	#cop2lc+2, (a0)+
+	move.w	d1, (a0)+			; MOVE RET, COP2LCL
+	move.w	#cop2lc, (a0)+
+	swap	d1
+	move.w	d1, (a0)+			; MOVE RET, COP2LCH
+
+	move.w	d2, d1
+	lsl.w	#8, d1
+	or.w	#$db, d1			; Horizontal spacing + set bit 0 DB seems to be after last paint
+	move.w	d1, (a0)+			; WAIT d2,00 
+	move.w	#$fffe, (a0)+		; ignore horizontals for now.		
+
+	move.w	#copjmp1, (a0)+		;
+	move.w	d0, (a0)+			; MOVE garbage, COMPJMP1
+
+	addq.w	#1, d2				; next scanline
+	dbra	d0, .next
+
+
+	; finish copper list
+	move.l  #CopperScene2, d1
+	move.w	#cop1lc+2, (a0)+
+	move.w	d1, (a0)+			; MOVE A1, COP1LCL
+	swap	d1
+	move.w	#cop1lc, (a0)+		; MOVE A1, COP1HCL
+	move.w	d1,(a0)+
+
+	move.l	a1, $dff080
+
+	move.l	#$01fc0000, (a0)+
+	move.l	#$ffe1fffe, (a0)+
+	move.l	#$fffffffe, (a0)+
+
+
+SetupCopperColortable:
 	; d5 loop control
 	; d6 scratch
 	; d7 color register
 	move.w	#16-1, d5
-	lea		CopperColors2, a4  ; the block of stuff
-	move.w	#$6a, d4			
+	lea		CopperColortable, a4  ; the block of stuff
 
 .nextBlock:
 	move.w	#color, d7
-			; Setup Copper wait ; dc.w	$2b01, $ff00
-	move.w	d4, d6
-	lsl.w	#8, d6
-	or.w	#1, d6	   ; wait
-	move.w  d6, (a4)+
-	move.w  #$ff00, d6 ; waitmask
-	move.w  d6, (a4)+
-	add.w	#bandSize, d4
 
 	;d0 : upordown INPUT : 1 up, -1 down
 	;d1 : desired color component
@@ -91,6 +131,8 @@ Scene2PreCalc:
 	moveq   #32-1, d0
 	
 .nextColor
+
+
 	; write the register in copper list
 	move.w	d7, (a4)+
 	addq.w  #2, d7
@@ -115,40 +157,29 @@ Scene2PreCalc:
 	move.w  d3, (a4)+
 	dbra    d0, .nextColor
 
+	move.w	#copjmp2, (a4)+		; MOVE garbage, COPJMP2
+	move.w	d5, (a4)+
+
 	dbra    d5, .nextBlock
 
-	; Now do the reverse in the next 15 blocks 
-	; the vertical location register is still in  d4
-	add.w   #14*bandSize, d4
-	; a4 Copperlist Location of blocks to copy 
-	; d0 block counter
-	lea 	CopperColors2, a4	
-	; 31 color sets, 4 per instruction, 32 colors, 1 wait instruction	
-	move.l 	#CopperColors2+(31-1)*4*(32+1), a2 ; Destination copper-list location
-	move.w   #15-1, d0 ; 
-.nextCopy:
-	move.l  a2, a3
-	addq.w  #4, a4   ; Skip wait instruction from source
 
-	; Sets wait instruction to the next scanline in dest
-	move.w	d4, d6
-	lsl.w	#8, d6
-	or.w	#1, d6	   ; wait
-	move.w  d6, (a3)+
-	move.w  #$ff00, d6 ; waitmask
-	move.w  d6, (a3)+
-	sub.w	#bandSize, d4
-
-	move.w  #32-1, d1  ; Color counter.
-.nextCopyColor:	
-	move.l  (a4)+, (a3)+
-	dbra	d1, .nextCopyColor
+SetupInitialGradient:
+	lea		SC2_Gradient, a0
+	move.w	#256-1, d0
+.loop:
+	move.b 	d0, (a0)+
+	dbra	d0, .loop
 
 
-	sub.l   #4*(32+1), a2 ; Move back one on destination pointer
-	dbra	d0, .nextCopy
+SetupCopperAddresses:
+	lea 	SC2_CopSubAddresses, a0
+	move.l 	#CopperColortable, d0
+	move.w	#16-1, d1
+.loop:
+	move.l	d0, (a0)+
+	add.l	#132, d0    ; Size of each copper subroutine
+	dbra	d1, .loop
 
-	lea		CopperColors2, a0
 	rts
 
 Scene2Init:
@@ -175,39 +206,26 @@ SC2HoldFrames:		equ 100
 
 
 Scene2:
-	move.w 	SC2_Position, d4
-	move.w  SC2_Direction, d1
-	add.w  d1, d4
-	move.w  d4, SC2_Position
+	WinUAEBreakpoint
+	lea		SC2_Gradient, a0
+	lea		CopperColors2, a1		;	 This is where the waits and jumps are
+	lea		CopperColortable, a2	; 	This is the color table
+	lea		SC2_CopSubAddresses, a3
+	move.w	#256-1, d0
+	addq.l	#2, a1
+.loop
+	move.b	(a0)+, d1
+	and.w	#$3c,d1
+	; 00 - 3f is the color range
+	;and.w	#$f,d1
+	;lsl	#2, d1
+	move.l	(a3,d1), d1
+	move.w	d1, (a1)	
+	swap	d1
+	move.w	d1, 4(a1)
+	add.l	#24, a1		; move to the next cop1l load
+	dbra	d0, .loop
 
-	cmp.w   #$a0, d4
-	bgt     .flip
-	cmp.w   #9, d4
-	ble		.flip
-
-	lea 	CopperColors2, a4
-	move.w  #31-1,d0
-
-.loadCopperWait:
-	add.w	#bandSize, d4
-	move.w	d4, d6
-	lsl.w	#8, d6
-	or.w	#1, d6	   ; wait
-	move.w  d6, (a4)+
-	move.w  #$ff00, d6 ; waitmask
-	move.w  d6, (a4)+
-
-
-	adda.w  #32*4, a4	; Skip the colors
-
-	dbra	d0, .loadCopperWait
-
-.done:
-	rts
-.flip:
-	move.w  SC2_Direction, d0
-	neg.w   d0
-	move.w  d0, SC2_Direction
 	rts
 
 
@@ -230,6 +248,14 @@ SC2_SmoothColor:
 	dc.w    $efee
 	dc.w    $fefe
 	dc.w    $fffe
+
+SC2_CopSubAddresses:
+	ds.l	16
+
+SC2_Gradient:
+	ds.b	256 	; 1 byte per row. This should not be here to save executable size.
+
+
 
 SC2_CurrentColorComponent:
 	ds.w    15
